@@ -25,6 +25,9 @@ export function getRealLiveUrl(): string {
   if (process.env.PUBLIC_URL && process.env.PUBLIC_URL.startsWith('http')) {
     return process.env.PUBLIC_URL.replace(/\/$/, '');
   }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, '');
+  }
 
   // 3. Fallback
   return 'https://chatty-wombat-63.loca.lt';
