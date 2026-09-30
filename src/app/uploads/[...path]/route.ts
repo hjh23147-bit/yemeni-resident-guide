@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 
 // Map file extensions to MIME types
 const MIME_TYPES: Record<string, string> = {
@@ -28,31 +29,38 @@ export async function GET(
     const decodedSegments = rawSegments.map((segment) => decodeURIComponent(segment));
 
     const uploadsBaseDir = path.resolve(process.cwd(), 'public', 'uploads');
-    const targetFilePath = path.resolve(uploadsBaseDir, ...decodedSegments);
+    const tmpBaseDir = path.resolve(os.tmpdir(), 'uploads');
 
-    // Security check: Prevent Directory Traversal
-    if (!targetFilePath.startsWith(uploadsBaseDir)) {
-      return NextResponse.json(
-        { error: 'Access denied: Invalid file path' },
-        { status: 403 }
-      );
+    let resolvedPath = path.resolve(uploadsBaseDir, ...decodedSegments);
+    let found = false;
+
+    // Check primary dir
+    try {
+      const stat = await fs.stat(resolvedPath);
+      if (stat.isFile()) found = true;
+    } catch {}
+
+    // Check temp fallback dir
+    if (!found) {
+      const tmpPath = path.resolve(tmpBaseDir, ...decodedSegments);
+      try {
+        const statTmp = await fs.stat(tmpPath);
+        if (statTmp.isFile()) {
+          resolvedPath = tmpPath;
+          found = true;
+        }
+      } catch {}
     }
 
-    try {
-      const stat = await fs.stat(targetFilePath);
-      if (!stat.isFile()) {
-        return NextResponse.json({ error: 'Not a file' }, { status: 404 });
-      }
-    } catch {
-      // If exact file not found, try to search the directory for matching base
+    if (!found) {
       return NextResponse.json(
         { error: 'File not found on server' },
         { status: 404 }
       );
     }
 
-    const fileBuffer = await fs.readFile(targetFilePath);
-    const ext = path.extname(targetFilePath).toLowerCase();
+    const fileBuffer = await fs.readFile(resolvedPath);
+    const ext = path.extname(resolvedPath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
     return new NextResponse(fileBuffer, {

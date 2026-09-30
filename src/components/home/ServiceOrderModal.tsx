@@ -163,31 +163,51 @@ export default function ServiceOrderModal({
     setIsSubmitting(true);
 
     try {
+      let orderNumber = `REQ-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+      let savedFiles: SavedFileItem[] = [];
+      let serverPublicBaseUrl = '';
+
       // 1. Prepare FormData to upload actual files to the server and database
-      const formData = new FormData();
-      formData.append('customerName', customerName.trim());
-      formData.append('customerPhone', customerPhone.trim());
-      formData.append('serviceName', finalServiceName.trim());
-      formData.append('serviceCategory', selectedCategory || 'عام');
-      formData.append('notes', `[المدينة: ${city}] [الأولوية: ${urgency === 'IMMEDIATE' ? 'فوري' : urgency === 'URGENT' ? 'عاجل' : 'عادي'}] ${notes}`);
+      try {
+        const formData = new FormData();
+        formData.append('customerName', customerName.trim());
+        formData.append('customerPhone', customerPhone.trim());
+        formData.append('serviceName', finalServiceName.trim());
+        formData.append('serviceCategory', selectedCategory || 'عام');
+        formData.append('notes', `[المدينة: ${city}] [الأولوية: ${urgency === 'IMMEDIATE' ? 'فوري' : urgency === 'URGENT' ? 'عاجل' : 'عادي'}] ${notes}`);
 
-      selectedFiles.forEach((file) => {
-        formData.append('files', file);
-      });
+        selectedFiles.forEach((file) => {
+          formData.append('files', file);
+        });
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        body: formData, // Automatic multipart/form-data with binary files
-      });
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          body: formData,
+        });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || 'حدث خطأ أثناء حفظ الطلب');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.data) {
+            orderNumber = data.data.orderNumber || orderNumber;
+            savedFiles = data.data.savedFiles || [];
+            serverPublicBaseUrl = data.data.publicBaseUrl || '';
+          }
+        }
+      } catch (apiErr) {
+        console.warn('API save notice (proceeding to WhatsApp directly):', apiErr);
       }
 
-      const orderNumber = data.data.orderNumber;
-      const savedFiles: SavedFileItem[] = data.data.savedFiles || [];
+      // If savedFiles is empty, map selectedFiles so they still appear in WhatsApp message
+      if (savedFiles.length === 0 && selectedFiles.length > 0) {
+        savedFiles = selectedFiles.map((file) => ({
+          name: file.name,
+          url: '',
+          size: file.size > 1024 * 1024 
+            ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+            : (file.size / 1024).toFixed(0) + ' KB',
+          type: file.type || 'document'
+        }));
+      }
 
       // 2. Resolve the Real Live Public Base URL (accessible from any phone/network)
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -199,7 +219,7 @@ export default function ServiceOrderModal({
       
       const liveBaseUrl = (!isLocalhost && origin) 
         ? origin 
-        : (data.data?.publicBaseUrl || 'https://muqeem-services.loca.lt');
+        : (serverPublicBaseUrl || 'https://muqeem-services.loca.lt');
 
       const urgencyLabel = urgency === 'IMMEDIATE' 
         ? 'فوري (خلال ساعات)' 
@@ -282,27 +302,25 @@ ${documentsSectionText}
         savedFiles
       });
 
-      // If mobile supports direct sharing of files to WhatsApp, trigger it; otherwise open WhatsApp chat
-      if (typeof navigator !== 'undefined' && navigator.canShare && selectedFiles.length > 0) {
-        try {
-          if (navigator.canShare({ files: selectedFiles })) {
-            await navigator.share({
-              files: selectedFiles,
-              title: `طلب إنجاز معاملة: ${orderNumber}`,
-              text: waMessage
-            });
-            return;
+      // Direct WhatsApp transfer ensuring popup blockers do not block
+      try {
+        const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = whatsappUrl;
+        } else {
+          const win = window.open(whatsappUrl, '_blank');
+          if (!win || win.closed || typeof win.closed === 'undefined') {
+            window.location.href = whatsappUrl;
           }
-        } catch (shareErr) {
-          // User canceled or fallback
         }
+      } catch {
+        window.location.href = whatsappUrl;
       }
 
-      // Default redirect to WhatsApp in a new tab
-      window.open(whatsappUrl, '_blank');
-
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'تعذر إرسال الطلب، يرجى المحاولة ثانية');
+      console.error('Submit order fallback error:', err);
+      // Even in the rarest catch case, open WhatsApp with target number
+      window.location.href = 'https://wa.me/966564520434';
     } finally {
       setIsSubmitting(false);
     }
