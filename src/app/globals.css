@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0B1F3A;
+  --primary-light: #16365f;
+  --secondary: #C8A45D;
+  --secondary-light: #e5cb93;
+  --background: #F7F8FA;
+  --card-bg: #FFFFFF;
+  --text-main: #172033;
+  --text-muted: #64748B;
+  --success: #168A5B;
+  --warning: #D98C10;
+  --danger: #C73B3B;
+  --border-color: #E2E8F0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif;
+  background-color: var(--background);
+  color: var(--text-main);
+  direction: rtl;
+  text-align: right;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism Classes */
+.glass-header {
+  background: rgba(11, 31, 58, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(200, 164, 93, 0.2);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Gold Gradient Accents */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #ECC97D 0%, #C8A45D 50%, #A27F33 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #0B1F3A 0%, #153259 100%);
+}
+
+.gold-gradient-bg {
+  background: linear-gradient(135deg, #ECC97D 0%, #C8A45D 100%);
+}
+
+/* Smooth Focus States for Accessibility */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+/* Badges */
+.badge-verified {
+  background-color: #eaf6f0;
+  color: #168A5B;
+  border: 1px solid #c2e7d3;
+}
+
+.badge-review {
+  background-color: #fdf6ea;
+  color: #D98C10;
+  border: 1px solid #fae2b8;
+}
+
+.badge-official {
+  background-color: #eef4ff;
+  color: #1d4ed8;
+  border: 1px solid #c7d9fe;
+}

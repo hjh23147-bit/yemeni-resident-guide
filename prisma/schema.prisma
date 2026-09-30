@@ -1,0 +1,316 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // USER, VERIFIED_USER, OFFICE_OWNER, ADMIN, etc.
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  phone           String?
+  passwordHash    String
+  fullName        String
+  roleId          String
+  role            Role             @relation(fields: [roleId], references: [id])
+  isVerified      Boolean          @default(false)
+  favorites       Favorite[]
+  reminders       Reminder[]
+  notifications   Notification[]
+  reviews         OfficeReview[]
+  aiConversations AIConversation[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ServiceCategory {
+  id            String    @id @default(uuid())
+  slug          String    @unique
+  nameAr        String
+  nameEn        String
+  descriptionAr String
+  icon          String
+  sortOrder     Int       @default(0)
+  services      Service[]
+  faqs          FAQ[]
+  articles      Article[]
+  createdAt     DateTime  @default(now())
+}
+
+model GovernmentEntity {
+  id              String    @id @default(uuid())
+  nameAr          String
+  nameEn          String
+  acronym         String?
+  officialWebsite String
+  logoUrl         String?
+  services        Service[]
+  platforms       GovernmentPlatform[]
+  createdAt       DateTime  @default(now())
+}
+
+model GovernmentPlatform {
+  id            String           @id @default(uuid())
+  slug          String           @unique
+  nameAr        String
+  nameEn        String
+  descriptionAr String
+  logoUrl       String
+  officialUrl   String
+  entityId      String?
+  entity        GovernmentEntity? @relation(fields: [entityId], references: [id])
+  services      Service[]
+  createdAt     DateTime         @default(now())
+}
+
+model Service {
+  id                 String              @id @default(uuid())
+  slug               String              @unique
+  nameAr             String
+  nameEn             String
+  descriptionAr      String
+  categoryId         String
+  category           ServiceCategory     @relation(fields: [categoryId], references: [id])
+  entityId           String?
+  entity             GovernmentEntity?   @relation(fields: [entityId], references: [id])
+  platformId         String?
+  platform           GovernmentPlatform? @relation(fields: [platformId], references: [id])
+  targetAudience     String              @default("RESIDENTS") // RESIDENTS, ESTABLISHMENTS, FAMILIES
+  processingTime     String              @default("فوري")
+  applicationMethod  String              @default("إلكتروني")
+  officialUrl        String
+  status             String              @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  verificationStatus String              @default("VERIFIED") // VERIFIED, NEEDS_REVIEW, OUTDATED
+  lastVerifiedAt     DateTime            @default(now())
+  featured           Boolean             @default(false)
+  viewCount          Int                 @default(0)
+  steps              ServiceStep[]
+  requirements       ServiceRequirement[]
+  fees               ServiceFee[]
+  sources            ServiceSource[]
+  updates            ServiceUpdate[]
+  favorites          Favorite[]
+  faqs               FAQ[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model ServiceStep {
+  id            String   @id @default(uuid())
+  serviceId     String
+  service       Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  stepNumber    Int
+  titleAr       String
+  descriptionAr String
+}
+
+model ServiceRequirement {
+  id                String   @id @default(uuid())
+  serviceId         String
+  service           Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  titleAr           String
+  isMandatory       Boolean  @default(true)
+  conditionalClause String?
+}
+
+model ServiceFee {
+  id            String    @id @default(uuid())
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  feeType       String    @default("OFFICIAL_GOVERNMENT") // OFFICIAL_GOVERNMENT, OFFICE_ESTIMATED
+  titleAr       String
+  amount        Float
+  currency      String    @default("SAR")
+  durationUnit  String?   // YEAR, MONTH
+  notesAr       String?
+  sourceName    String
+  verifiedAt    DateTime  @default(now())
+}
+
+model ServiceSource {
+  id            String    @id @default(uuid())
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  sourceName    String
+  sourceUrl     String
+  sourceType    String    @default("GOV_PORTAL") // GOV_PORTAL, OFFICIAL_PDF, GAZETTE
+  confidence    String    @default("HIGH") // HIGH, MEDIUM, LOW
+  verifiedAt    DateTime  @default(now())
+  lastCheckedAt DateTime?
+  statusCode    Int       @default(200)
+}
+
+model ServiceUpdate {
+  id          String   @id @default(uuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  titleAr     String
+  summaryAr   String
+  sourceUrl   String
+  publishedAt DateTime @default(now())
+}
+
+model City {
+  id        String   @id @default(uuid())
+  nameAr    String   @unique
+  nameEn    String
+  regionAr  String
+  offices   Office[]
+  createdAt DateTime @default(now())
+}
+
+model Office {
+  id           String         @id @default(uuid())
+  nameAr       String
+  cityId       String
+  city         City           @relation(fields: [cityId], references: [id])
+  districtAr   String
+  phone        String
+  whatsapp     String
+  crNumber     String?
+  isVerified   Boolean        @default(false)
+  status       String         @default("APPROVED") // PENDING, APPROVED, REJECTED
+  ratingAvg    Float          @default(5.0)
+  reviewsCount Int            @default(0)
+  services     OfficeService[]
+  reviews      OfficeReview[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model OfficeService {
+  id       String @id @default(uuid())
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  nameAr   String
+}
+
+model OfficeReview {
+  id          String   @id @default(uuid())
+  officeId    String
+  office      Office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  rating      Int      @default(5)
+  comment     String
+  serviceType String?
+  isApproved  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, serviceId])
+}
+
+model Reminder {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titleAr      String
+  reminderType String   // IQAMA_EXPIRY, PASSPORT_EXPIRY, INSURANCE_EXPIRY, APPOINTMENT
+  dueDate      DateTime
+  isCompleted  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Article {
+  id          String           @id @default(uuid())
+  slug        String           @unique
+  titleAr     String
+  contentAr   String
+  categoryId  String?
+  category    ServiceCategory? @relation(fields: [categoryId], references: [id])
+  isPublished Boolean          @default(true)
+  publishedAt DateTime         @default(now())
+}
+
+model FAQ {
+  id         String           @id @default(uuid())
+  questionAr String
+  answerAr   String
+  categoryId String?
+  category   ServiceCategory? @relation(fields: [categoryId], references: [id])
+  serviceId  String?
+  service    Service?         @relation(fields: [serviceId], references: [id])
+  sourceUrl  String?
+  createdAt  DateTime         @default(now())
+}
+
+model AIConversation {
+  id           String      @id @default(uuid())
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id])
+  sessionToken String?
+  messages     AIMessage[]
+  createdAt    DateTime    @default(now())
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // user, assistant, system
+  content        String
+  sourcesCited   String?        // JSON stringified citations
+  confidence     Float?
+  createdAt      DateTime       @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // CREATE, UPDATE, DELETE, VERIFY
+  entityType String   // SERVICE, FEE, OFFICE
+  entityId   String
+  oldValues  String?  // JSON string
+  newValues  String?  // JSON string
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+}
+
+model ServiceOrder {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique
+  customerName    String
+  customerPhone   String
+  serviceName     String
+  serviceCategory String?
+  notes           String?
+  status          String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED
+  filesCount      Int      @default(0)
+  filesList       String?  // JSON list of uploaded document names
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
